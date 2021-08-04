@@ -1,0 +1,10 @@
+numpy
+pandas
+matplotlib
+
+yfinance==0.1.63
+gym==0.18.3
+torch==1.9.0
+stable-baselines3==1.1.0
+cloudpickle==1.6.0
+universal-portfolios==0.4.3
