@@ -6,7 +6,6 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
 import yfinance as yf
 
 
@@ -39,7 +38,22 @@ def train_test_split(data, n_train=None, train_years=10, validation_set=True):
 
 
 def get_action_space(M, N):
-    """Discretize and return action space for DQN."""
+    """Discretize and return action space for DQN.
+
+    Parameters
+    ----------
+    M: int
+        Number of traded assets.
+    N: int
+        Number of divisions/slices allowed in
+        discretized action space.
+
+    Returns
+    -------
+    A: list
+        list of all unique actions in the action space
+        after discretization.
+    """
     A = []
     NUM = M + 1 + N - 1
     seq = list(range(NUM))
@@ -60,13 +74,9 @@ def get_action_space(M, N):
     return A
 
 
-def softmax_normalization(actions):
-    return np.exp(actions)/np.sum(np.exp(actions))
-
-
 def plot_episodes(env):
-
-    episodes = pd.DataFrame(env.episodes)
+    """Plot episode summaries and performance on env."""
+    episodes = pd.DataFrame(env.record.episodes)
 
     print("mean:")
     print(episodes.mean())
@@ -82,6 +92,8 @@ def plot_episodes(env):
     plt.xticks(rotation=90)
     axes.set(title='Score per Episode', ylabel='Score', xlabel='Episode')
     plt.show()
+
+    env.render()
 
 
 # def sharpe(returns, freq=252, rfr=0):

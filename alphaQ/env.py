@@ -10,10 +10,9 @@ from alphaQ.agent.utils import AgentStrategy, Record
 from alphaQ.utils import get_action_space, download_ticker_data
 
 # TODO
-# replace underscore variables
-# move episode tracking to Record
 # summary method?
-# plotting axis - remove window length
+# EPISODE #
+
 
 class PortfolioEnv(gym.Env):
     """OpenAI Gym Base Trading Environment."""
@@ -31,7 +30,7 @@ class PortfolioEnv(gym.Env):
         self.trading_cost = env_config.get('trading_cost', config.COMMISSION_RATE)
         self.observation_with_weights = env_config.get('observation_with_weights', True)
         self.action_space_type = env_config.get('action_space_type', 'discrete')
-        self.test_env = env_config.get('test_env', False)
+        self.render_enabled = env_config.get('render', True)
 
         # <prices> not provided
         if prices is None and tickers is not None:
@@ -41,9 +40,9 @@ class PortfolioEnv(gym.Env):
 
         # resample prices into _prices table
         if not trading_period:
-            self._prices = prices.copy()
+            self.prices = prices.copy()
         else:
-            self._prices = prices.resample(trading_period).last()
+            self.prices = prices.resample(trading_period).last()
 
         if 'Adj Close' in self.features:
             self.close = 'Adj Close'
@@ -51,10 +50,10 @@ class PortfolioEnv(gym.Env):
             self.close = 'Close'
 
         # relative (percentage) returns
-        self._returns = self._prices[self.close].pct_change()  # self._prices/self._prices.shift(1) - 1
+        self.returns = self.prices[self.close].pct_change()  # self._prices/self._prices.shift(1) - 1
 
         # price relative vector
-        self.Y = self._returns + 1  # self._prices/self._prices.shift(1) (eq 1)
+        self.Y = self.returns + 1  # self._prices/self._prices.shift(1) (eq 1)
         # add cash column
         self.Y['CASH'] = 1
         self.Y['CASH'].iloc[0] = np.nan
@@ -78,9 +77,6 @@ class PortfolioEnv(gym.Env):
         self.step_count = 0
         self.episode_count = 0
 
-        # list to store episode summary
-        self.episodes = []
-
         # create an object to register agent stats
         self.record = Record(columns=self.instruments, index=self.dates[self.window_length-1:])
         self.result = None
@@ -89,13 +85,13 @@ class PortfolioEnv(gym.Env):
         if market_prices is not None:
             self.market = BAH().run(market_prices[self.window_length-1:])
         # best constant rebalanced portfolio
-        self.bcrp = BCRP().run(self._prices[self.close][self.window_length-1:])
+        self.bcrp = BCRP().run(self.prices[self.close][self.window_length-1:])
         self.bcrp.fee = self.trading_cost
 
     @property
     def instruments(self) -> list:
         """List of non cash asset instrument universe."""
-        return self._prices.columns.unique(level=1).tolist()
+        return self.prices.columns.unique(level=1).tolist()
 
     @property
     def n_instruments(self) -> int:
@@ -105,7 +101,7 @@ class PortfolioEnv(gym.Env):
     @property
     def features(self) -> list:
         """List of features used to train on."""
-        return self._prices.columns.unique(level=0).tolist()
+        return self.prices.columns.unique(level=0).tolist()
 
     @property
     def n_features(self) -> int:
@@ -115,16 +111,16 @@ class PortfolioEnv(gym.Env):
     @property
     def dates(self) -> pd.DatetimeIndex:
         """Dates of the environment prices."""
-        return self._prices.index
+        return self.prices.index
 
     @property
     def index(self) -> pd.Timestamp:
         """Return current index."""
         return self.dates[self.window_length + self._counter - 1]
 
-    def _get_observation(self) -> pd.DataFrame:
+    def _get_observation(self):
         """Build current observation to send to the agent."""
-        window_data = self._prices[self._counter:self._counter + self.window_length]
+        window_data = self.prices[self._counter:self._counter + self.window_length]
         # divide price vector by latest close price for each asset
         obs = window_data.values.reshape(self.window_length, self.n_features, self.n_instruments)/window_data[self.close].iloc[-1].values
         obs = obs.transpose(1, 2, 0)
@@ -136,7 +132,7 @@ class PortfolioEnv(gym.Env):
                 return {'history': obs, 'weights': self.weights}
         return obs
 
-    def _get_done(self) -> bool:
+    def _get_done(self):
         """Check if episode has ended."""
         return self.index == self.dates[-1]
 
@@ -146,7 +142,7 @@ class PortfolioEnv(gym.Env):
         Parameters
         ----------
         action: object
-            action provided by the agent.
+            Action provided by the agent.
 
         Returns
         -------
@@ -170,13 +166,12 @@ class PortfolioEnv(gym.Env):
             raise ValueError('invalid `action` attempted: %s' % (action))
 
         if self.action_space_type == 'continuous':
-            # self.weights = softmax_normalization(action)
+            # self.weights = np.exp(actions)/np.sum(np.exp(actions))  # softmax normalisation
             self.weights = action/action.sum()
         else:
             self.weights = self.action_set[self.action]
 
         self.record.actions.loc[self.index] = self.weights
-        self.record.rewards.loc[self.index] = np.append(self._returns.loc[self.index], 0) * self.weights
 
         # ======================================================================
 
@@ -186,7 +181,7 @@ class PortfolioEnv(gym.Env):
         # calculate commision to change from dw to new weights - ignoring cash for transaction cost
         mu = self.trading_cost * np.abs(self.dw - self.weights)[:-1].sum()  # (eq 16)
 
-        # rho = self.record.rewards.loc[self.index].sum()  # (eq 3)
+        # rho = (self.returns.loc[self.index] * self.weights[:-1]).sum()  # (eq 3)
         # rho = np.dot(y, self.weights) - 1  # (eq 3)
         rho = (1 - mu) * np.dot(y, self.weights) - 1  # (eq 9)
 
@@ -205,6 +200,7 @@ class PortfolioEnv(gym.Env):
         # fetch return values
         observation = self._get_observation()
 
+        # select reward
         reward = rho
         # reward = log_returns
         # reward = log_returns*1000/len(self._prices)
@@ -219,7 +215,6 @@ class PortfolioEnv(gym.Env):
             "return": y.values,
             # "return": self._returns.loc[self.index].values,
             # 'actions': self.weights,
-            # "cost": mu,
             'date': self.index,
             'step': self._counter
         }
@@ -232,8 +227,8 @@ class PortfolioEnv(gym.Env):
             # self.df_info['market_value'] = np.cumprod(self.df_info['return'].apply(lambda x: x[:-1])).apply(np.mean)
 
             self.episode_count += 1
-            self.episodes.append({'rewards': self.df_info['rate_of_return'].sum(), 'total_wealth': self.portfolio_value})
-            if self.test_env or config.RENDER_TRAINING:
+            self.record.episodes.append({'rewards': self.df_info['rate_of_return'].sum(), 'total_wealth': self.portfolio_value})
+            if self.render_enabled:
                 self.render()
 
         return observation, reward, done, info
@@ -267,21 +262,22 @@ class PortfolioEnv(gym.Env):
     def render(self, mode='human') -> None:
         """Render the environment."""
         # initialize figure and axes
-        fig, axes = plt.subplots(ncols=2, figsize=(20, 5), sharex=True)
+        fig, axes = plt.subplots(nrows=2, figsize=(20, 10), sharex=True)
         plt.subplots_adjust(wspace=0, hspace=0)
-        ax1 = axes[1]
+        ax0, ax1 = axes[0], axes[1]
 
         # plot asset closing prices
-        close_prices = self._prices[self.close].iloc[self.window_length-1:]
+        close_prices = self.prices[self.close].iloc[self.window_length-1:]
         close_prices['CASH'] = 1
-        close_prices.plot(ax=axes[0])  # :self.index
+        close_prices.plot(ax=ax0)  # :self.index
 
+        # plot asset weights as heatmap over prices
         for asset in close_prices:
             close_prices[asset].reset_index().plot.scatter(x='Date', y=asset, c=self.record.actions[asset].values, cmap=plt.cm.Reds,
-                                                           marker='o', s=100, vmin=0, vmax=1, alpha=0.2, ax=axes[0], colorbar=False)
+                                                           marker='o', s=100, vmin=0, vmax=1, alpha=0.2, ax=ax0, colorbar=False)
 
         # agent
-        self.result = AgentStrategy(self.record.actions).run(self._prices[self.close].iloc[self.window_length-1:])  # :self.index
+        self.result = AgentStrategy(self.record.actions).run(self.prices[self.close].iloc[self.window_length-1:])  # :self.index
         self.result.fee = self.trading_cost
 
         # portfolio
@@ -291,41 +287,30 @@ class PortfolioEnv(gym.Env):
         self.market.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='DJI', ax=ax1)
 
         # metrics
-        # mdd = max_drawdown(self.df_info.rate_of_return + 1)
-        # sharpe_ratio = sharpe(self.df_info.rate_of_return)
         self.bcrp.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='BCRP', ax=ax1)
         asset_equity = self.result.asset_equity
         best_stock = asset_equity[asset_equity.iloc[-1].idxmax()]
         best_stock.rename('Best Stock').plot(ax=ax1).legend()
 
-        if mode == 'human':
-            print("=================================")
+        print("=================================")
+        if mode == 'train':
             print("begin_total_asset: {}".format(self.df_info['portfolio_value'].iloc[0]))
             print("end_total_asset: {}".format(self.portfolio_value))
-            # print('max_drawdown: {: 2.2%}'.format(mdd))
-            # print('sharpe_ratio:', sharpe_ratio)
             print("EPISODE:", self.episode_count, 'Steps:', self._counter)
-            print("   Total wealth:", self.result.total_wealth)
-            print(self.result.summary())
-            # print("Final Holdings:", self.weights)
-            print("=================================")
 
-        # collapse date-wise rewards to calculate PnL
-        # _pnl = (self.record.rewards.sum(axis=1) + 1).cumprod().to_frame(name='PnL')
-        # _pnl.loc[:self.index].plot(ax=ax1)  # portfolio
-
-        # self.df_info[['portfolio_value', 'market_value']].plot(ax=ax1)  # portfolio bah
+        print("   Total wealth:", self.result.total_wealth)
+        print(self.result.summary())
+        # print("Final Holdings:", self.weights)
+        print("=================================")
 
         # axes settings
-        # axes[0].set_xlim(self.dates.min(), self.dates.max())
-        # axes[0].set_title('Market Prices')
-        # axes[0].set_ylabel('Prices')
+        ax0.set_ylabel('Stock Prices')
+        ax0_ = ax0.twinx()
+        ax0_.set_ylim(ax0.get_ylim())
 
-        ax1.set_xlim(self.dates.min(), self.dates.max())
-        # ax1.set_title('PnL')
-        # ax1.set_ylabel('Wealth Level')
-        ax1.yaxis.set_label_position("right")
-        ax1.yaxis.tick_right()
+        ax1.set_xlim(self.dates[self.window_length-1], self.dates.max())
+        ax1_ = ax1.twinx()
+        ax1_.set_ylim(ax1.get_ylim())
 
         # draw throttled
         # plt.pause(0.0001)

@@ -1,43 +1,39 @@
+"""Functions for evaluation and comparison of agent performance."""
+
 import pandas as pd
 from config import WINDOW_LENGTH, COMMISSION_RATE, OLPS_STRATEGIES
 
 
 def evalu8(agent, env):
     """Closure runner for each episode."""
-    # initialize rewards local buffer
-    # rewards = []
-    # initialize actions local buffer
-    # actions = []
-    # environment: reset & fetch observation
-    ob = env.reset()
-    # initialize reward
-    reward = 0.0
-    # termination flag
+    # reset environment and fetch observation
+    obs = env.reset()
+    # completion flag
     done = False
-    # environment state information
-    info = {}
-    # iterator for maximum episode steps
-    j = 0
-    # interaction loop
-    while (not done):
-        # agent closure: determine action
-        action, _ = agent.predict(ob)
-        # environment: take action
-        new_ob, reward, done, info = env.step(action)
-        # store reward
-        # rewards.append(reward)
-        # store action
-        # actions.append(action)
-        # agent closure: observe
-        # set new observation to current
-        ob = new_ob
-        # increment iterator
-        j = j + 1
 
-#     return _rewards, _actions
+    # until episode completes
+    while (not done):
+        # determine action
+        action, _states = agent.predict(obs, deterministic=True)
+        # environment: take action
+        new_obs, reward, done, info = env.step(action)
+        # update current observation
+        obs = new_obs
 
 
 def evaluate_baselines(data, agent_strategy=None):
+    """Evaluate and compare baseline strategies (with agent strategies)."""
+    strategies = OLPS_STRATEGIES.copy()
+    strategy_names = [algo.__class__.__name__ for algo in strategies]
+
+    if agent_strategy:
+        if not isinstance(agent_strategy, list):
+            # convert to list
+            agent_strategy = [agent_strategy]
+
+        # append agent strategies to benchmarks/baselines
+        strategies = agent_strategy + strategies
+        strategy_names = list(map(lambda x: x.name, agent_strategy)) + strategy_names
 
     attributes = [
         'total_wealth',
@@ -51,13 +47,6 @@ def evaluate_baselines(data, agent_strategy=None):
         'annual_turnover'
     ]
 
-    strategies = OLPS_STRATEGIES.copy()
-    strategy_names = [algo.__class__.__name__ for algo in strategies]
-    if agent_strategy:
-        strategies.insert(0, agent_strategy)
-        strategy_names.insert(0, agent_strategy.name)
-
-    # 'algo', 'results',
     df_metrics = pd.DataFrame(index=strategy_names, columns=attributes)
     results = pd.Series(index=strategy_names)
 

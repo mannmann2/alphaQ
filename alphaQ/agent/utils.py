@@ -1,3 +1,5 @@
+"""Agent utilities."""
+
 import numpy as np
 import pandas as pd
 
@@ -5,18 +7,17 @@ from universal.algo import Algo
 
 
 class AgentStrategy(Algo):
-    """Universal Portfolio interface for RL agent to
-    allow strategy comparison.
-    """
+    """Universal Portfolio interface for RL agent strategy comparison."""
+
     PRICE_TYPE = 'raw'
 
     def __init__(self, actions, name='PORTFOLIO'):
-        """:params b: Portfolio weights at start. Default are uniform."""
         super().__init__()
         self.actions = actions
         self.name = name
 
     def weights(self, S):
+        """Return weights."""
         return self.actions
 
 
@@ -29,6 +30,5 @@ class Record:
         self.actions = pd.DataFrame(columns=columns, index=index, dtype=float)
         self.actions.iloc[0] = np.zeros(len(columns))
         self.actions.iloc[0]['CASH'] = 1.0
-        # records of rewards
-        self.rewards = pd.DataFrame(columns=columns, index=index, dtype=float)
-        self.rewards.iloc[0] = np.zeros(len(columns))
+        # record of episode summaries
+        self.episodes = []

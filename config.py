@@ -5,8 +5,13 @@ from stable_baselines3 import DQN, DDPG
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise, NormalActionNoise
 # eps = np.finfo(float).eps
 
-# MODEL = 'dqn'
-MODEL = 'ddpg'
+# MODEL = 'ddpg'
+MODEL = 'dqn'
+
+MODEL_PATH = {
+    'ddpg': 'models/DDPG7_best_model.zip',
+    'dqn': 'models/DQN7_best_model.zip'
+}
 
 MODELS = {
     'dqn': DQN,
@@ -17,9 +22,6 @@ ACTION_SPACE = {
     'dqn': 'discrete',
     'ddpg': 'continuous',
 }
-
-MODEL_PATH = 'models/DDPG7_best_model.zip'
-# MODEL_PATH = 'models/DQN7_best_model.zip'
 
 # DJIA as of April 14, 2021
 DOW_TICKERS = [
@@ -80,9 +82,6 @@ WINDOW_LENGTH = 50
 # fee charged as commission by the broker
 COMMISSION_RATE = 0.0025
 
-# render agent performance on training data
-RENDER_TRAINING = False
-
 ##################################################
 # Training Hyperparameters
 ##################################################
@@ -98,7 +97,7 @@ if MODEL == 'ddpg':
     BUFFER_SIZE = 10000
     BATCH_SIZE = 64
     TAU = 0.005
-    GAMMA = 0.5
+    GAMMA = 1
     TRAIN_FREQ = 100
     ACTION_NOISE = 'ornstein_uhlenbeck'  # 'normal' | None
 
@@ -110,8 +109,8 @@ elif MODEL == 'dqn':
     BATCH_SIZE = 64
     TAU = 0.005
     GAMMA = 0.5
-    TRAIN_FREQ = 1000
-    TARGET_UPDATE = 1
+    TRAIN_FREQ = 1
+    TARGET_UPDATE = 1000
 
 ##################################################
 # Exploration configurations
@@ -122,7 +121,6 @@ if MODEL == 'ddpg':
         "normal": NormalActionNoise,
         "ornstein_uhlenbeck": OrnsteinUhlenbeckActionNoise,
     }
-
     NOISE_SIGMA = 0.2
 
 elif MODEL == 'dqn':
@@ -135,6 +133,7 @@ elif MODEL == 'dqn':
 ##################################################
 
 CALLBACK_ENABLED = True
+CALLBACK_START = 20000
 SAVE_PATH = 'models/'
 LOG_PATH = 'logs/'
 CALLBACK_VERBOSE_LEVEL = 2
