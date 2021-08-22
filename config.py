@@ -140,36 +140,51 @@ CALLBACK_VERBOSE_LEVEL = 2
 
 ##################################################
 
+ATTRIBUTES = [
+    'total_wealth',
+    'cumulative_return',
+    'annualised_return',
+    'sharpe',
+    'max_drawdown',
+    'max_drawdown_period',
+    'ulcer_index',
+    'profit_factor',
+    'winning_pct',
+    'beta',
+    'alpha',
+    'appraisal_ratio',
+    'information_ratio',
+    'annualised_volatility',
+    'annual_turnover',
+]
+
 # online portfolio selection strategies for
 # benchmarking/comparing agent performance
 # TODO other window/params
 OLPS_STRATEGIES = [
     # benchmarks
-    BAH(),
-    CRP(),
-    BCRP(),
-    # DCRP()
+    algos.BAH(),
+    algos.CRP(),
+    algos.BCRP(),
+    # algos.DCRP(),
+    algos.MPT(window=50, min_history=1, mu_estimator='historical', cov_estimator='empirical', q=0), # min-variance
 
     # follow the winner
-    UP(),
-    EG(),
+    algos.UP(),
+    algos.EG(),
 
     # follow the loser
-    Anticor(window=50),
-    PAMR(),
-    OLMAR(window=50),
-    RMR(window=50),
-    CWMR(),
-    WMAMR(window=50),
+    algos.Anticor(window=WINDOW_LENGTH),
+    algos.PAMR(eps=1),
+    algos.OLMAR(window=WINDOW_LENGTH),
+    algos.RMR(window=WINDOW_LENGTH),
+    algos.CWMR(),
+    algos.WMAMR(window=WINDOW_LENGTH),
 
     # pattern matching
-    # BNN(),
-    CORN(window=50),
+    algos.BNN(k=WINDOW_LENGTH),
+    algos.CORN(),
 
-    # others
-    # BestMarkowitz(),
-    # Kelly(),
-    # BestSoFar(),
-    ONS(),
-    # MPT()
+    # meta-learning
+    algos.ONS(),
 ]
