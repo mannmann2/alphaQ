@@ -22,9 +22,12 @@ class FeatureExtractor(BaseFeaturesExtractor):
 
         features_dim: int
             Number of units in the last layer.
+
+        multiplier: int
+            Multiplication factor for layer size.
     """
 
-    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 512, mult: int = 1):
+    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 512, multiplier: int = 1):
         super(FeatureExtractor, self).__init__(observation_space, features_dim)
 
         # history_shape = observation_space['history'].shape
@@ -32,11 +35,11 @@ class FeatureExtractor(BaseFeaturesExtractor):
         # n_instruments = observation_space['history'].shape[1]
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 4*mult, kernel_size=(1, 8), stride=1, padding=0),
+            nn.Conv2d(n_input_channels, 4*multiplier, kernel_size=(1, 8), stride=1, padding=0),
             nn.ReLU(),
-            nn.Conv2d(4*mult, 8*mult, kernel_size=(1, 16), stride=1, padding=0),
+            nn.Conv2d(4*multiplier, 8*multiplier, kernel_size=(1, 16), stride=1, padding=0),
             nn.ReLU(),
-            nn.Conv2d(8*mult, 16*mult, kernel_size=(1, 28), stride=1, padding=0),
+            nn.Conv2d(8*multiplier, 16*multiplier, kernel_size=(1, 28), stride=1, padding=0),
             nn.ReLU(),
             nn.Flatten(),
         )

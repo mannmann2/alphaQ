@@ -20,7 +20,7 @@ def train_test_split(data, n_train=None, train_years=10, validation_set=True):
     if n_train is None:
         if train_years is None:
             raise "Either `n_train` or `train_years` is required."
-        n_train = train_years * 252
+        n_train = int(train_years * 252)
 
     if n_train > data.shape[0]:
         raise "Invalid train size selected."
@@ -93,17 +93,11 @@ def plot_episodes(env):
     axes.set(title='Score per Episode', ylabel='Score', xlabel='Episode')
     plt.show()
 
-    env.render()
 
-
-# def sharpe(returns, freq=252, rfr=0):
-#     """ Given a set of returns, calculates naive (rfr=0) sharpe (eq 28). """
-#     # return np.sqrt(freq) * np.mean(returns - rfr + eps) / np.std(returns - rfr + eps)
-#     return np.sqrt(freq) * np.mean(returns - rfr) / np.std(returns - rfr)
-
-#     # if df_info["rate_of_return"].std() != 0:
-#       # sharpe1 = (252 ** 0.5) * df_info["rate_of_return"].mean() / df_info["rate_of_return"].std(ddof=0)
-#       # print("Sharpe: ", sharpe1)
+def sharpe(returns, freq=252, rfr=0):
+    """Calculate sharpe ratio for returns."""
+    eps = np.finfo(float).eps
+    return np.sqrt(freq) * np.mean(returns - rfr) / np.std(returns - rfr + eps)
 
 
 # def max_drawdown(returns):

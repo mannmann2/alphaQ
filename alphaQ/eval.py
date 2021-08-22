@@ -24,7 +24,7 @@ def evalu8(agent, env):
 
 
 def get_stats(result):
-    # TODO assign with dict
+    """Calculate metrics from strategy result."""
     alpha, beta = result.alpha_beta()
     stats = [
         result.total_wealth,
