@@ -32,11 +32,11 @@ class FeatureExtractor(BaseFeaturesExtractor):
         # n_instruments = observation_space['history'].shape[1]
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 8*mult, kernel_size=(1, 8), stride=1, padding=0),
+            nn.Conv2d(n_input_channels, 4*mult, kernel_size=(1, 8), stride=1, padding=0),
             nn.ReLU(),
-            nn.Conv2d(8*mult, 16*mult, kernel_size=(1, 16), stride=1, padding=0),
+            nn.Conv2d(4*mult, 8*mult, kernel_size=(1, 16), stride=1, padding=0),
             nn.ReLU(),
-            nn.Conv2d(16*mult, 32*mult, kernel_size=(1, 28), stride=1, padding=0),
+            nn.Conv2d(8*mult, 16*mult, kernel_size=(1, 28), stride=1, padding=0),
             nn.ReLU(),
             nn.Flatten(),
         )
