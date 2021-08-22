@@ -1,26 +1,28 @@
 """Config file."""
 
-from universal.algos import *
+from universal import algos
 from stable_baselines3 import DQN, DDPG
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise, NormalActionNoise
-# eps = np.finfo(float).eps
 
-# MODEL = 'ddpg'
-MODEL = 'dqn'
-
-MODEL_PATH = {
-    'ddpg': 'models/DDPG7_best_model.zip',
-    'dqn': 'models/DQN7_best_model.zip'
-}
 
 MODELS = {
     'dqn': DQN,
     'ddpg': DDPG
 }
 
+MODEL_PATH = {
+    'ddpg': 'models/DDPG_best.zip',
+    'dqn': 'models/DQN_best.zip'
+}
+
 ACTION_SPACE = {
     'dqn': 'discrete',
     'ddpg': 'continuous',
+}
+
+ACTION_NOISE = {
+    "normal": NormalActionNoise,
+    "ornstein_uhlenbeck": OrnsteinUhlenbeckActionNoise,
 }
 
 # DJIA as of April 14, 2021
@@ -86,47 +88,65 @@ COMMISSION_RATE = 0.0025
 # Training Hyperparameters
 ##################################################
 
+DDPG_KWARGS = dict(
+    policy='MultiInputPolicy',
+    learning_rate=0.000002,
+    learning_starts=10000,
+    buffer_size=10000,
+    batch_size=64,
+    tau=0.005,
+    gamma=1,
+    train_freq=100,
+    action_noise='ornstein_uhlenbeck'  # 'normal' | None
+)
+
+DQN_KWARGS = dict(
+    policy='MultiInputPolicy',
+    learning_rate=0.00005,
+    learning_starts=10000,
+    buffer_size=10000,
+    batch_size=64,
+    tau=0.005,
+    gamma=0.5,
+    train_freq=1,
+    target_update_interval=1000
+)
+
 TRAIN_VERBOSE_LEVEL = 2
 RANDOM_SEED = 42
-
-if MODEL == 'ddpg':
-
-    POLICY = 'MultiInputPolicy'
-    ALPHA = 0.000002
-    TRAIN_START = 10000
-    BUFFER_SIZE = 10000
-    BATCH_SIZE = 64
-    TAU = 0.005
-    GAMMA = 1
-    TRAIN_FREQ = 100
-    ACTION_NOISE = 'ornstein_uhlenbeck'  # 'normal' | None
-
-elif MODEL == 'dqn':
-    POLICY = 'MultiInputPolicy'
-    ALPHA = 0.00002
-    TRAIN_START = 10000
-    BUFFER_SIZE = 10000
-    BATCH_SIZE = 64
-    TAU = 0.005
-    GAMMA = 0.5
-    TRAIN_FREQ = 1
-    TARGET_UPDATE = 1000
 
 ##################################################
 # Exploration configurations
 ##################################################
 
-if MODEL == 'ddpg':
-    NOISE = {
-        "normal": NormalActionNoise,
-        "ornstein_uhlenbeck": OrnsteinUhlenbeckActionNoise,
-    }
-    NOISE_SIGMA = 0.2
+DDPG_EX_PARAMS = dict(
+    noise_sigma=0.2,
+)
 
-elif MODEL == 'dqn':
-    EPSILON_FRACTION = 0.4
-    EPSILON_INITIAL = 0.8
-    EPSILON_FINAL = 0.01
+DQN_EX_PARAMS = dict(
+    exploration_fraction=0.4,
+    exploration_initial_eps=0.8,
+    exploration_final_eps=0.01,
+)
+
+##################################################
+# Combined Model and NN Configurations
+##################################################
+
+MODEL_PARAMS = {
+    'ddpg': dict(
+        net_arch=[512, 256, 128],
+        multiplier=2,
+        hyperparams=DDPG_KWARGS,
+        exploration=DDPG_EX_PARAMS,
+    ),
+    'dqn': dict(
+        net_arch=[256, 128, 64],
+        multiplier=1,
+        hyperparams=DQN_KWARGS,
+        exploration=DQN_EX_PARAMS,
+    )
+}
 
 ##################################################
 # Callback configurations
