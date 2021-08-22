@@ -31,6 +31,7 @@ class PortfolioEnv(gym.Env):
         self.observation_with_weights = env_config.get('observation_with_weights', True)
         self.action_space_type = env_config.get('action_space_type', 'discrete')
         self.render_enabled = env_config.get('render', True)
+        self.render_mode = env_config.get('render_mode', 'train')
 
         # <prices> not provided
         if prices is None and tickers is not None:
@@ -197,15 +198,16 @@ class PortfolioEnv(gym.Env):
 
         # ======================================================================
 
-        # fetch return values
+        # fetch observation values
         observation = self._get_observation()
+
+        # fetch termination flag
+        done = self._get_done()
 
         # select reward
         reward = rho
         # reward = log_returns
-        # reward = log_returns*1000/len(self._prices)
-
-        done = self._get_done()
+        # reward = log_returns*1000/len(self.prices)
 
         info = {
             "reward": reward,
@@ -220,6 +222,8 @@ class PortfolioEnv(gym.Env):
         }
         self.infos.append(info)
 
+        # reward = rho + sharpe(np.array([x['rate_of_return'] for x in self.infos])
+
         if done:
             self.df_info = pd.DataFrame(self.infos, index=self.dates[self.window_length-1:])
             # calculate return for buy and hold a bit of each asset
@@ -228,8 +232,12 @@ class PortfolioEnv(gym.Env):
 
             self.episode_count += 1
             self.record.episodes.append({'rewards': self.df_info['rate_of_return'].sum(), 'total_wealth': self.portfolio_value})
+
+            if self.render_mode == 'train':
+                print("EPISODE:", self.episode_count, 'Steps:', self._counter)
+
             if self.render_enabled:
-                self.render()
+                self.render(self.render_mode)
 
         return observation, reward, done, info
 
@@ -259,10 +267,10 @@ class PortfolioEnv(gym.Env):
         ob = self._get_observation()
         return ob
 
-    def render(self, mode='human') -> None:
+    def render(self, mode='train') -> None:
         """Render the environment."""
         # initialize figure and axes
-        fig, axes = plt.subplots(nrows=2, figsize=(20, 10), sharex=True)
+        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(14, 12), sharex=True)
         plt.subplots_adjust(wspace=0, hspace=0)
         ax0, ax1 = axes[0], axes[1]
 
@@ -281,34 +289,32 @@ class PortfolioEnv(gym.Env):
         self.result.fee = self.trading_cost
 
         # portfolio
-        self.result.plot(assets=False, weights=False, ucrp=True, bah=True, ax=ax1)
-
-        # market
-        self.market.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='DJI', ax=ax1)
+        self.result.plot(assets=False, weights=False, ucrp=True, bah=True, ax=ax1, linewidth=2)
 
         # metrics
-        self.bcrp.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='BCRP', ax=ax1)
+        self.bcrp.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='BCRP', ax=ax1, color=(0.0, 0.8789398846597463, 1.0))
         asset_equity = self.result.asset_equity
         best_stock = asset_equity[asset_equity.iloc[-1].idxmax()]
         best_stock.rename('Best Stock').plot(ax=ax1).legend()
 
-        print("=================================")
-        if mode == 'train':
-            print("begin_total_asset: {}".format(self.df_info['portfolio_value'].iloc[0]))
-            print("end_total_asset: {}".format(self.portfolio_value))
-            print("EPISODE:", self.episode_count, 'Steps:', self._counter)
+        # market
+        self.market.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='DJIA', ax=ax1, color='black')
 
-        print("   Total wealth:", self.result.total_wealth)
-        print(self.result.summary())
-        # print("Final Holdings:", self.weights)
-        print("=================================")
+        print("============================================")
+        print("Total wealth:", round(self.result.total_wealth, 4))
+        if mode == 'test':
+            print(self.result.summary()[8:])
+            print("Final Holdings:", np.round(self.weights, 3))
+        print("============================================")
 
         # axes settings
-        ax0.set_ylabel('Stock Prices')
+        ax0.set_ylabel('Asset Prices')
         ax0_ = ax0.twinx()
         ax0_.set_ylim(ax0.get_ylim())
 
         ax1.set_xlim(self.dates[self.window_length-1], self.dates.max())
+        ax1.yaxis.tick_right()
+        # ax1.yaxis.set_label_position("right")
         ax1_ = ax1.twinx()
         ax1_.set_ylim(ax1.get_ylim())
 
