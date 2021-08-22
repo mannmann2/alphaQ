@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from universal.algo import Algo
+from stable_baselines3 import DQN, DDPG
 
 
 class AgentStrategy(Algo):
@@ -34,6 +35,18 @@ class Record:
         self.episodes = []
 
 
+def load_model(path):
+    """Load agent from path based on name."""
+    name = path.strip('/').split('/')[-1]
+    if name.startswith('DQN'):
+        return 'dqn', DQN.load(path)
+    elif name.startswith('DDPG'):
+        return 'ddpg', DDPG.load(path)
+    else:
+        print(' - Could not load model. Check name...')
+        return None
+
+
 def display_attributes(agent, obs_space=None):
     """Display selected agent attributes."""
     print('learning_rate:', agent.learning_rate)
@@ -43,7 +56,7 @@ def display_attributes(agent, obs_space=None):
     print('polyak_update:', agent.tau)
 
     if agent.action_noise:
-        print('action_noise', agent.action_noise)
+        print('action_noise:', agent.action_noise)
 
     eps = agent.__dict__.get('exploration_initial_eps')
     if eps:
