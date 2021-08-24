@@ -49,19 +49,22 @@ def get_stats(result):
 def evaluate_baselines(data, custom_strategies=[], market_data={}, attributes=None):
     """Evaluate and compare baseline strategies (with agent strategies)."""
     strategies = OLPS_STRATEGIES.copy()
+    # determine strategy names for index
     strategy_names = [algo.__class__.__name__ for algo in strategies]
 
     # if not list, convert to list
     if not isinstance(custom_strategies, list):
         custom_strategies = [custom_strategies]
 
-    # append agent strategies to benchmarks/baselines
+    # append custom strategies to benchmarks/baselines
     strategies = custom_strategies + strategies
     strategy_names = list(map(lambda x: x.name, custom_strategies)) + strategy_names
 
+    # initialise objects for metrics and results
     df_metrics = pd.DataFrame(index=strategy_names, columns=ATTRIBUTES)
     results = pd.Series(index=strategy_names)
 
+    # for each strategyy calculate metrics/results and add to objects
     for name, algo in zip(df_metrics.index, strategies):
         print(name, end='.')
         result = algo.run(data['Close'][WINDOW_LENGTH-1:])
@@ -70,6 +73,7 @@ def evaluate_baselines(data, custom_strategies=[], market_data={}, attributes=No
         df_metrics.loc[name] = get_stats(result)
         results.loc[name] = result
 
+    # for each market benchmark calculate metrics and results
     for name, data in market_data.items():
         print(name, end='.')
         result = BAH().run(data[WINDOW_LENGTH-1:])
@@ -78,6 +82,7 @@ def evaluate_baselines(data, custom_strategies=[], market_data={}, attributes=No
         df_metrics.loc[name] = get_stats(result)
         results.loc[name] = result
 
+    # filter selected attributes
     if attributes:
         df_metrics = df_metrics[attributes]
     return results, df_metrics

@@ -160,6 +160,7 @@ CALLBACK_VERBOSE_LEVEL = 2
 
 ##################################################
 
+# metrics to be calculated when evaluating strategies
 ATTRIBUTES = [
     'total_wealth',
     'cumulative_return',
@@ -180,14 +181,13 @@ ATTRIBUTES = [
 
 # online portfolio selection strategies for
 # benchmarking/comparing agent performance
-# TODO other window/params
 OLPS_STRATEGIES = [
     # benchmarks
     algos.BAH(),
     algos.CRP(),
     algos.BCRP(),
     # algos.DCRP(),
-    algos.MPT(window=50, min_history=1, mu_estimator='historical', cov_estimator='empirical', q=0), # min-variance
+    algos.MPT(window=50, min_history=1, mu_estimator='historical', cov_estimator='empirical', q=0),  # min-variance
 
     # follow the winner
     algos.UP(),

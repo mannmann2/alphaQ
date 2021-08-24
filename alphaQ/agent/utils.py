@@ -26,8 +26,9 @@ class Record:
     """Local data structure for actions and rewards records."""
 
     def __init__(self, index, columns):
-        # records of actions
+        # add cash column to assets
         columns = columns + ['CASH']
+        # records of actions
         self.actions = pd.DataFrame(columns=columns, index=index, dtype=float)
         self.actions.iloc[0] = np.zeros(len(columns))
         self.actions.iloc[0]['CASH'] = 1.0
@@ -37,7 +38,9 @@ class Record:
 
 def load_model(path):
     """Load agent from path based on name."""
+    # get filename from path
     name = path.strip('/').split('/')[-1]
+    # load model based on saved file name
     if name.startswith('DQN'):
         return 'dqn', DQN.load(path)
     elif name.startswith('DDPG'):

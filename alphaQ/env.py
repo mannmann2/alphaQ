@@ -1,3 +1,5 @@
+"""Trading environment for portfolio optimisation task."""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,10 +11,6 @@ import config
 from alphaQ.agent.utils import AgentStrategy, Record
 from alphaQ.utils import get_action_space, download_ticker_data
 
-# TODO
-# summary method?
-# EPISODE #
-
 
 class PortfolioEnv(gym.Env):
     """OpenAI Gym Base Trading Environment."""
@@ -20,40 +18,44 @@ class PortfolioEnv(gym.Env):
     def __init__(self, **env_config):
 
         tickers = env_config['tickers']
-        prices = env_config['prices']
-        market_prices = env_config['market_prices']
+        prices = env_config.get('prices')
+        market_prices = env_config.get('market_prices')
+        # define trading frequqncy
         trading_period = env_config.get('trading_period')
-
         # set window length for observations
         self.window_length = env_config.get('window_length', config.WINDOW_LENGTH)
         # set commission fee rate
         self.trading_cost = env_config.get('trading_cost', config.COMMISSION_RATE)
+        # to use previous weights in observations or not
         self.observation_with_weights = env_config.get('observation_with_weights', True)
+        # continuous or discrete action space
         self.action_space_type = env_config.get('action_space_type', 'discrete')
+        # enable or disable rendering for environment
         self.render_enabled = env_config.get('render', True)
         self.render_mode = env_config.get('render_mode', 'train')
 
-        # <prices> not provided
+        # prices not provided
         if prices is None and tickers is not None:
             # fetch prices
             print('downloading data...')
             prices = download_ticker_data(tickers, **env_config)
 
-        # resample prices into _prices table
+        # resample prices based on trading period
         if not trading_period:
             self.prices = prices.copy()
         else:
             self.prices = prices.resample(trading_period).last()
 
+        # select feature for close prices
         if 'Adj Close' in self.features:
             self.close = 'Adj Close'
         else:
             self.close = 'Close'
 
-        # relative (percentage) returns
+        # calculate relative (percentage) returns
         self.returns = self.prices[self.close].pct_change()  # self._prices/self._prices.shift(1) - 1
 
-        # price relative vector
+        # calculate price relative vector
         self.Y = self.returns + 1  # self._prices/self._prices.shift(1) (eq 1)
         # add cash column
         self.Y['CASH'] = 1
@@ -66,7 +68,7 @@ class PortfolioEnv(gym.Env):
         elif self.action_space_type == 'continuous':
             self.action_space = gym.spaces.Box(0, 1, (self.n_instruments+1,), dtype=np.float32)
 
-        # define observation space
+        # define observation space with or without weights
         history_space = gym.spaces.Box(-np.inf,  np.inf, (self.n_features, self.n_instruments, self.window_length), dtype=np.float32)
         if self.observation_with_weights:
             weight_space = gym.spaces.Box(0, 1, (self.n_instruments+1,), dtype=np.float32)
@@ -78,14 +80,16 @@ class PortfolioEnv(gym.Env):
         self.step_count = 0
         self.episode_count = 0
 
-        # create an object to register agent stats
+        # create an object to register training stats for agent
         self.record = Record(columns=self.instruments, index=self.dates[self.window_length-1:])
         self.result = None
 
         # calculate market rate
         if market_prices is not None:
             self.market = BAH().run(market_prices[self.window_length-1:])
-        # best constant rebalanced portfolio
+            self.market.fee = self.trading_cost
+
+        # calculate best constant rebalanced portfolio
         self.bcrp = BCRP().run(self.prices[self.close][self.window_length-1:])
         self.bcrp.fee = self.trading_cost
 
@@ -111,17 +115,17 @@ class PortfolioEnv(gym.Env):
 
     @property
     def dates(self) -> pd.DatetimeIndex:
-        """Dates of the environment prices."""
+        """Date indices for asset prices."""
         return self.prices.index
 
     @property
     def index(self) -> pd.Timestamp:
         """Return current index."""
-        return self.dates[self.window_length + self._counter - 1]
+        return self.dates[self.window_length + self.counter - 1]
 
     def _get_observation(self):
         """Build current observation to send to the agent."""
-        window_data = self.prices[self._counter:self._counter + self.window_length]
+        window_data = self.prices[self.counter:self.counter + self.window_length]
         # divide price vector by latest close price for each asset
         obs = window_data.values.reshape(self.window_length, self.n_features, self.n_instruments)/window_data[self.close].iloc[-1].values
         obs = obs.transpose(1, 2, 0)
@@ -156,22 +160,27 @@ class PortfolioEnv(gym.Env):
         info: dict
             Contains auxiliary diagnostic information (helpful for debugging, and sometimes learning).
         """
-        # timestep
-        self._counter += 1
+        # increment counter
+        self.counter += 1
+        # increment timestep
         self.step_count += 1
 
+        # save action
         self.action = action
 
         # action validity check
         if not self.action_space.contains(action):
             raise ValueError('invalid `action` attempted: %s' % (action))
 
+        # normalise for continuos action space
         if self.action_space_type == 'continuous':
             # self.weights = np.exp(actions)/np.sum(np.exp(actions))  # softmax normalisation
             self.weights = action/action.sum()
+        # get weights from action set for discrete actions space
         else:
             self.weights = self.action_set[self.action]
 
+        # save weights in training record
         self.record.actions.loc[self.index] = self.weights
 
         # ======================================================================
@@ -182,13 +191,16 @@ class PortfolioEnv(gym.Env):
         # calculate commision to change from dw to new weights - ignoring cash for transaction cost
         mu = self.trading_cost * np.abs(self.dw - self.weights)[:-1].sum()  # (eq 16)
 
+        # calculate returns (with or without transaction fee)
         # rho = (self.returns.loc[self.index] * self.weights[:-1]).sum()  # (eq 3)
         # rho = np.dot(y, self.weights) - 1  # (eq 3)
         rho = (1 - mu) * np.dot(y, self.weights) - 1  # (eq 9)
 
+        # calculate log returns (with or without transaction fee)
         # log_returns = np.log(np.dot(y, self.weights))  # (eq 4)
         log_returns = np.log((1 - mu) * np.dot(y, self.weights))  # (eq 10)
 
+        # calculate portfolio value (with or without transaction fee)
         # self.portfolio_value = self.portfolio_value * (rho + 1)  # (eq 2)
         # self.portfolio_value = self.portfolio_value * np.dot(y, self.weights)  # (eq 2)
         self.portfolio_value = self.portfolio_value * (1 - mu) * np.dot(y, self.weights)  # (eq 11)
@@ -209,6 +221,7 @@ class PortfolioEnv(gym.Env):
         # reward = log_returns
         # reward = log_returns*1000/len(self.prices)
 
+        # generate info object for current step
         info = {
             "reward": reward,
             "portfolio_value": self.portfolio_value,  # value_memory
@@ -218,10 +231,11 @@ class PortfolioEnv(gym.Env):
             # "return": self._returns.loc[self.index].values,
             # 'actions': self.weights,
             'date': self.index,
-            'step': self._counter
+            'step': self.counter
         }
         self.infos.append(info)
 
+        # use for reward incorporating sharpe ratio
         # reward = rho + sharpe(np.array([x['rate_of_return'] for x in self.infos])
 
         if done:
@@ -230,11 +244,12 @@ class PortfolioEnv(gym.Env):
             # self.df_info['market_value'] = np.cumprod(pd.DataFrame([info['return'] for info in self.infos])).mean(axis=1)
             # self.df_info['market_value'] = np.cumprod(self.df_info['return'].apply(lambda x: x[:-1])).apply(np.mean)
 
+            # if done, increment episode count and add stats to training record
             self.episode_count += 1
             self.record.episodes.append({'rewards': self.df_info['rate_of_return'].sum(), 'total_wealth': self.portfolio_value})
 
             if self.render_mode == 'train':
-                print("EPISODE:", self.episode_count, 'Steps:', self._counter)
+                print("EPISODE:", self.episode_count, 'Steps:', self.counter)
 
             if self.render_enabled:
                 self.render(self.render_mode)
@@ -254,7 +269,8 @@ class PortfolioEnv(gym.Env):
         else:
             # action 0 corresponds to starting portfolio weights in discretised action space
             self.action = 0
-        # setting initial weights to 0 for non-cash assets and 1 for cash
+
+        # setting initial and changed weights to 0 for non-cash assets and 1 for cash
         self.weights = np.append(np.zeros(self.n_instruments), 1)
         self.dw = np.append(np.zeros(self.n_instruments), 1)
 
@@ -262,7 +278,7 @@ class PortfolioEnv(gym.Env):
         self.infos = [{'portfolio_value': 1.0, 'rate_of_return': 0.0, 'return': np.ones(self.n_instruments+1)}]
 
         # reset episode step counter
-        self._counter = 0
+        self.counter = 0
         # get initial observation
         ob = self._get_observation()
         return ob
@@ -288,11 +304,11 @@ class PortfolioEnv(gym.Env):
         self.result = AgentStrategy(self.record.actions).run(self.prices[self.close].iloc[self.window_length-1:])  # :self.index
         self.result.fee = self.trading_cost
 
-        # portfolio
+        # portfolio and metrics
         self.result.plot(assets=False, weights=False, ucrp=True, bah=True, ax=ax1, linewidth=2)
-
-        # metrics
+        # bcrp
         self.bcrp.plot(assets=False, weights=False, ucrp=False, bah=False, portfolio_label='BCRP', ax=ax1, color=(0.0, 0.8789398846597463, 1.0))
+        # best stock
         asset_equity = self.result.asset_equity
         best_stock = asset_equity[asset_equity.iloc[-1].idxmax()]
         best_stock.rename('Best Stock').plot(ax=ax1).legend()
@@ -318,7 +334,4 @@ class PortfolioEnv(gym.Env):
         ax1_ = ax1.twinx()
         ax1_.set_ylim(ax1.get_ylim())
 
-        # draw throttled
-        # plt.pause(0.0001)
-        # fig.canvas.draw()
         plt.show()

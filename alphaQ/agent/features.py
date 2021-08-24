@@ -34,6 +34,7 @@ class FeatureExtractor(BaseFeaturesExtractor):
         n_input_channels = observation_space['history'].shape[0]
         # n_instruments = observation_space['history'].shape[1]
 
+        # define convolutional layers
         self.cnn = nn.Sequential(
             nn.Conv2d(n_input_channels, 4*multiplier, kernel_size=(1, 8), stride=1, padding=0),
             nn.ReLU(),
@@ -47,6 +48,7 @@ class FeatureExtractor(BaseFeaturesExtractor):
     def forward(self, observations: TensorDict) -> th.Tensor:
         """Forward pass of the neural network."""
         # print(observations['history'].shape, observations['weights'].shape)
+        # determine output from convolutions
         a = self.cnn(observations['history'])
         # concatenate weights to network output
         k = th.cat((a, observations['weights']), dim=1)
