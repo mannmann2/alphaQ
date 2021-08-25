@@ -13,7 +13,7 @@ from alphaQ.utils import get_action_space, download_ticker_data
 
 
 class PortfolioEnv(gym.Env):
-    """OpenAI Gym Base Trading Environment."""
+    """Portfolio trading environment."""
 
     def __init__(self, **env_config):
 

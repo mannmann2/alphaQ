@@ -76,6 +76,7 @@ def get_action_space(M, N):
 
 def plot_episodes(env):
     """Plot episode summaries and performance on env."""
+    # create dataframe with episode stats
     episodes = pd.DataFrame(env.record.episodes)
 
     print("mean:")
@@ -90,7 +91,7 @@ def plot_episodes(env):
 
     # axes settings
     plt.xticks(rotation=90)
-    axes.set(title='Score per Episode', ylabel='Score', xlabel='Episode')
+    axes.set(title='Reward per Episode', ylabel='Reward', xlabel='Episode')
     plt.show()
 
 
