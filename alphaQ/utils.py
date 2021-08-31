@@ -95,14 +95,7 @@ def plot_episodes(env):
     plt.show()
 
 
-def sharpe(returns, freq=252, rfr=0):
+def sharpe(returns, freq=252, risk_free_rate=0):
     """Calculate sharpe ratio for returns."""
     eps = np.finfo(float).eps
-    return np.sqrt(freq) * np.mean(returns - rfr) / np.std(returns - rfr + eps)
-
-
-# def max_drawdown(returns):
-#     """ Max drawdown. See https://www.investopedia.com/terms/m/maximum-drawdown-mdd.asp """
-#     peak = returns.max()
-#     trough = returns[returns.argmax():].min()
-#     return (trough - peak) / (peak + eps)
+    return np.sqrt(freq) * np.mean(returns - risk_free_rate) / np.std(returns - risk_free_rate + eps)

@@ -240,9 +240,6 @@ class PortfolioEnv(gym.Env):
 
         if done:
             self.df_info = pd.DataFrame(self.infos, index=self.dates[self.window_length-1:])
-            # calculate return for buy and hold a bit of each asset
-            # self.df_info['market_value'] = np.cumprod(pd.DataFrame([info['return'] for info in self.infos])).mean(axis=1)
-            # self.df_info['market_value'] = np.cumprod(self.df_info['return'].apply(lambda x: x[:-1])).apply(np.mean)
 
             # if done, increment episode count and add stats to training record
             self.episode_count += 1
