@@ -1,8 +1,9 @@
 """Copy of the class stable_baselines3.common.callback.EvalCallback.
+https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/callbacks.py
 
 This class is copied here with a single modification to accept a user defined
 step count from the config file only after which trained models will be saved.
-This ensure models are saved only after sufficient training has occured, and
+This ensures models are saved only after sufficient training has occured, and
 prevents models from early on in the training when exploration is high
 and random actions selected with more frequency from setting a record best
 on the validation set and preventing any further models being saved.
