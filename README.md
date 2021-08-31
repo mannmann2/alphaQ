@@ -18,11 +18,13 @@ Or view it in Jupyter's online notebook viewer:
 - [Nbviewer](https://nbviewer.jupyter.org/github/mannmann2/alphaQ/blob/main/main.ipynb)
 
 ## Models
+Below is a list of all the pre-trained models provided.
+
 #### Best models for `[AAPL, JPM, MSFT, V]`  
 [DQN_best](models/DQN_best.zip)  
 [DDPG_best](models/DDPG_best.zip)
 
-#### Alternates for `[AAPL, JPM, MSFT, V]` 
+#### Alternate models for `[AAPL, JPM, MSFT, V]` 
 **DQN:** [DQN 5](models/DQN5.zip), [DQN 6](models/DQN6.zip), [DQN 7](models/DQN7.zip), [DQN 8](models/DQN8.zip)  
 **DDPG:** [DDPG 7](models/DDPG7.zip), [DDPG 8](models/DDPG8.zip)  
 

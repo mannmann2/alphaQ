@@ -97,7 +97,7 @@ DDPG_KWARGS = dict(
     tau=0.005,
     gamma=1,
     train_freq=100,
-    action_noise='ornstein_uhlenbeck'  # 'normal' | None
+    action_noise='normal'  # 'normal' | 'ornstein_uhlenbeck' | None
 )
 
 DQN_KWARGS = dict(
