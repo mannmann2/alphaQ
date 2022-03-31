@@ -44,6 +44,6 @@ Below is a list of all the pre-trained models provided.
 [Progress Slides 3](docs/ProgressSlides3.pdf)  
 [Progress Slides 4](docs/ProgressSlides4.pdf)  
 [Preliminary Report](docs/PreliminaryProjectReport.pdf)  
-
+[MSc Final Report](docs/FinalProjectReport.pdf)
 
 * Free software: MIT license
