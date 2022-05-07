@@ -17,6 +17,9 @@ For learning how to train and evaluate the agents, follow the starter notebook p
 Or view it in Jupyter's online notebook viewer: 
 - [Nbviewer](https://nbviewer.jupyter.org/github/mannmann2/alphaQ/blob/main/main.ipynb)
 
+## Results
+<img src="results.png" alt="results" width="700"/>
+
 ## Models
 Below is a list of all the pre-trained models provided.
 
